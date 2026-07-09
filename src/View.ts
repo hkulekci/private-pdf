@@ -462,7 +462,7 @@ export class View {
   }
 
   public downloadBlob(data: Uint8Array, filename: string) {
-    const blob = new Blob([data], { type: "application/pdf" });
+    const blob = new Blob([data as BlobPart], { type: "application/pdf" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = filename;

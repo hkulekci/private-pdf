@@ -4,7 +4,7 @@ import { PdfDocument } from "./PdfDocument";
 /** Helper which loads a PDF file from the supplied `fileData`. */
 export class PdfDocumentLoader {
   constructor(
-    private readonly fileData: ArrayBuffer,
+    private readonly fileData: ArrayBuffer | Uint8Array,
     private readonly options: PdfOptions
   ) {}
 

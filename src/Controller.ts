@@ -95,7 +95,7 @@ export class Controller {
       });
   }
 
-  private async loadPdf(fileName: string, fileData: ArrayBuffer) {
+  private async loadPdf(fileName: string, fileData: ArrayBuffer | Uint8Array) {
     this.currentPage = 1;
     var originalToActualRatio: number = -1;
 
