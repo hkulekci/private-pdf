@@ -177,6 +177,23 @@
         display: inline-block;
       }
 
+      #toolbar #insert-image-scale {
+        width: 44px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        padding: 4px;
+        margin-left: 2px;
+      }
+      #toolbar #insert-image-scale-suffix {
+        margin-left: 2px;
+        font-size: 13px;
+        color: #555;
+      }
+      #toolbar #insert-image-scale:disabled {
+        opacity: 50%;
+        cursor: default;
+      }
+
       #toolbar button {
         margin: 0 4px 0 1px;
         border: 1px solid #ccc;
@@ -329,6 +346,15 @@
               />
             </svg>
           </button>
+          <input
+            type="number"
+            id="insert-image-scale"
+            min="1"
+            value="100"
+            title="Default scale (%) applied to newly inserted images"
+            disabled
+          />
+          <span id="insert-image-scale-suffix">%</span>
           <div class="separator"></div>
           <div id="nav-bar">
             <button id="previous" title="Go to the previous page" disabled>

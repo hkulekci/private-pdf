@@ -41,6 +41,9 @@ export class View {
     (document.getElementById("insert-image") as HTMLElement).removeAttribute(
       "disabled"
     );
+    (
+      document.getElementById("insert-image-scale") as HTMLElement
+    ).removeAttribute("disabled");
     (document.getElementById("previous") as HTMLElement).removeAttribute(
       "disabled"
     );
@@ -72,6 +75,10 @@ export class View {
       "true"
     );
     (document.getElementById("insert-image") as HTMLElement).setAttribute(
+      "disabled",
+      "true"
+    );
+    (document.getElementById("insert-image-scale") as HTMLElement).setAttribute(
       "disabled",
       "true"
     );
@@ -288,6 +295,21 @@ export class View {
       // Note that focusing scrolls the PDF page to the element
       newDraggable.focus();
 
+      // Read the default scale (%) from the toolbar and prefill the overlay's
+      // scale input so newly inserted images come in at the chosen size.
+      const defaultScale =
+        parseFloat(
+          (
+            document.getElementById(
+              "insert-image-scale"
+            ) as HTMLInputElement | null
+          )?.value ?? ""
+        ) || 100;
+      const scaleInput = newDraggable.querySelector(
+        "input[type=number].scale"
+      ) as HTMLInputElement;
+      scaleInput.value = defaultScale.toString();
+
       var input = document.getElementById(
         "insert-image-input"
       ) as HTMLInputElement;
@@ -302,6 +324,12 @@ export class View {
         reader.onload = function (e: ProgressEvent<FileReader>) {
           const imageBase64 = (e.target?.result as string) || null;
           if (imageBase64 != null && validateBase64(imageBase64)) {
+            // Apply the default scale once the natural dimensions are known.
+            img.onload = function () {
+              const scale = parseFloat(scaleInput.value) || 100;
+              img.width = (img.naturalWidth * scale) / 100;
+              img.height = (img.naturalHeight * scale) / 100;
+            };
             img.src = imageBase64;
           } else {
             console.log(
