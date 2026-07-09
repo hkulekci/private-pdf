@@ -177,20 +177,87 @@
         display: inline-block;
       }
 
-      #toolbar #insert-image-scale {
-        width: 44px;
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-overlay[hidden] {
+        display: none;
+      }
+      .modal {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px 24px;
+        width: 340px;
+        max-width: 90vw;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        font-family: sans-serif;
+      }
+      .modal h3 {
+        margin: 0 0 16px;
+        font-size: 18px;
+      }
+      .modal-row {
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+      }
+      .modal-row > label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .modal-row input[type="number"] {
+        width: 64px;
         border-radius: 5px;
         border: 1px solid #ccc;
         padding: 4px;
-        margin-left: 2px;
       }
-      #toolbar #insert-image-scale-suffix {
-        margin-left: 2px;
-        font-size: 13px;
-        color: #555;
+      .modal-row select {
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        padding: 4px;
       }
-      #toolbar #insert-image-scale:disabled {
-        opacity: 50%;
+      .modal-preview {
+        display: none;
+        margin: 6px 0 14px;
+        text-align: center;
+        background: #f4f4f4;
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .modal-preview img {
+        max-width: 100%;
+        max-height: 140px;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .modal-actions button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        background: #fff;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .modal-actions #modal-insert {
+        background: indigo;
+        color: #fff;
+        border-color: indigo;
+      }
+      .modal-actions #modal-insert:disabled {
+        opacity: 0.5;
         cursor: default;
       }
 
@@ -322,19 +389,7 @@
               />
             </svg>
           </button>
-          <input
-            type="file"
-            accept="image/png, image/jpeg"
-            id="insert-image-input"
-            name="insert-image"
-            hidden
-          />
-          <button
-            id="insert-image"
-            onclick="document.getElementById('insert-image-input').click()"
-            title="Insert image"
-            disabled
-          >
+          <button id="insert-image" title="Insert image" disabled>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               height="32"
@@ -346,15 +401,6 @@
               />
             </svg>
           </button>
-          <input
-            type="number"
-            id="insert-image-scale"
-            min="1"
-            value="100"
-            title="Default scale (%) applied to newly inserted images"
-            disabled
-          />
-          <span id="insert-image-scale-suffix">%</span>
           <div class="separator"></div>
           <div id="nav-bar">
             <button id="previous" title="Go to the previous page" disabled>
@@ -442,6 +488,52 @@
         >
         Don't worry, it doesn't get uploaded anywhere - it all runs in your
         browser!
+      </div>
+    </div>
+
+    <div id="image-modal-overlay" class="modal-overlay" hidden>
+      <div class="modal">
+        <h3>Insert image</h3>
+        <div class="modal-row">
+          <label
+            >Image:
+            <input
+              type="file"
+              accept="image/png, image/jpeg"
+              id="modal-image-file"
+          /></label>
+        </div>
+        <div class="modal-preview" id="modal-preview-wrap">
+          <img id="modal-image-preview" alt="Selected image preview" />
+        </div>
+        <div class="modal-row">
+          <label
+            >Scale (%):
+            <input type="number" id="modal-image-scale" min="1" value="100"
+          /></label>
+        </div>
+        <div class="modal-row">
+          <label>
+            <input type="checkbox" id="modal-all-pages" />
+            Add to all pages
+          </label>
+        </div>
+        <div class="modal-row">
+          <label
+            >Position:
+            <select id="modal-position">
+              <option value="bottom-right">Bottom right</option>
+              <option value="bottom-left">Bottom left</option>
+              <option value="top-right">Top right</option>
+              <option value="top-left">Top left</option>
+              <option value="center">Center</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-cancel" type="button">Cancel</button>
+          <button id="modal-insert" type="button" disabled>Insert</button>
+        </div>
       </div>
     </div>
 

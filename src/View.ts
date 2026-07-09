@@ -41,9 +41,6 @@ export class View {
     (document.getElementById("insert-image") as HTMLElement).removeAttribute(
       "disabled"
     );
-    (
-      document.getElementById("insert-image-scale") as HTMLElement
-    ).removeAttribute("disabled");
     (document.getElementById("previous") as HTMLElement).removeAttribute(
       "disabled"
     );
@@ -75,10 +72,6 @@ export class View {
       "true"
     );
     (document.getElementById("insert-image") as HTMLElement).setAttribute(
-      "disabled",
-      "true"
-    );
-    (document.getElementById("insert-image-scale") as HTMLElement).setAttribute(
       "disabled",
       "true"
     );
@@ -249,109 +242,251 @@ export class View {
       };
   }
 
+  /**
+   * Wires up the "Insert image" flow. Clicking the toolbar button opens a modal
+   * where the user picks the image, its scale, whether it should be stamped on
+   * every page and where on the page it should be positioned. On confirm, the
+   * image overlay is created accordingly.
+   */
   public setOnInsertImageInputListener(
     validateBase64: (base64: string) => boolean
   ) {
     const that = this;
-    const imageInput = document.getElementById(
-      "insert-image-input"
+    const overlay = document.getElementById(
+      "image-modal-overlay"
+    ) as HTMLElement;
+    const openBtn = document.getElementById("insert-image") as HTMLElement;
+    const fileInput = document.getElementById(
+      "modal-image-file"
     ) as HTMLInputElement;
-    imageInput.onclick = function () {
-      imageInput.value = "";
+    const previewWrap = document.getElementById(
+      "modal-preview-wrap"
+    ) as HTMLElement;
+    const preview = document.getElementById(
+      "modal-image-preview"
+    ) as HTMLImageElement;
+    const scaleInput = document.getElementById(
+      "modal-image-scale"
+    ) as HTMLInputElement;
+    const allPagesInput = document.getElementById(
+      "modal-all-pages"
+    ) as HTMLInputElement;
+    const positionSelect = document.getElementById(
+      "modal-position"
+    ) as HTMLSelectElement;
+    const insertBtn = document.getElementById(
+      "modal-insert"
+    ) as HTMLButtonElement;
+    const cancelBtn = document.getElementById(
+      "modal-cancel"
+    ) as HTMLButtonElement;
+
+    let currentBase64: string | null = null;
+
+    const closeModal = function () {
+      overlay.setAttribute("hidden", "true");
     };
-    imageInput.onchange = async function () {
-      (
-        document.getElementById("overlayContainer") as HTMLElement
-      ).insertAdjacentHTML(
-        "beforeend",
-        `
-        <div class="image draggable focused" tabindex="0">
-          <img class="image-wrapper" />
-          <div class="text-options focused">
-            <div class="img-container drag-handle">
-              <img src="img/icon_drag.png" draggable="false" title="Drag image" />
+
+    const openModal = function () {
+      fileInput.value = "";
+      preview.src = "";
+      previewWrap.style.display = "none";
+      scaleInput.value = "100";
+      allPagesInput.checked = false;
+      positionSelect.value = "bottom-right";
+      currentBase64 = null;
+      insertBtn.disabled = true;
+      overlay.removeAttribute("hidden");
+    };
+
+    openBtn.onclick = openModal;
+    cancelBtn.onclick = closeModal;
+    overlay.onclick = function (event: MouseEvent) {
+      // Close only when clicking the dimmed backdrop, not the dialog itself.
+      if (event.target === overlay) {
+        closeModal();
+      }
+    };
+
+    fileInput.onchange = function () {
+      const file = fileInput.files?.[0];
+      if (!file) {
+        currentBase64 = null;
+        insertBtn.disabled = true;
+        previewWrap.style.display = "none";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function (e: ProgressEvent<FileReader>) {
+        const base64 = (e.target?.result as string) || null;
+        if (base64 != null && validateBase64(base64)) {
+          currentBase64 = base64;
+          preview.src = base64;
+          previewWrap.style.display = "block";
+          insertBtn.disabled = false;
+        } else {
+          currentBase64 = null;
+          insertBtn.disabled = true;
+          previewWrap.style.display = "none";
+          console.log("Invalid image format: must be either PNG or JPEG.");
+        }
+      };
+      reader.readAsDataURL(file);
+    };
+
+    insertBtn.onclick = function () {
+      if (currentBase64 == null) {
+        return;
+      }
+      const scale = parseFloat(scaleInput.value) || 100;
+      that.insertImageOverlay(
+        currentBase64,
+        scale,
+        allPagesInput.checked,
+        positionSelect.value
+      );
+      closeModal();
+    };
+  }
+
+  /** Creates a draggable image overlay, scaled and positioned per the modal choices. */
+  private insertImageOverlay(
+    base64: string,
+    scale: number,
+    allPages: boolean,
+    position: string
+  ) {
+    const that = this;
+    (
+      document.getElementById("overlayContainer") as HTMLElement
+    ).insertAdjacentHTML(
+      "beforeend",
+      `
+      <div class="image draggable focused" tabindex="0">
+        <img class="image-wrapper" />
+        <div class="text-options focused">
+          <div class="img-container drag-handle">
+            <img src="img/icon_drag.png" draggable="false" title="Drag image" />
+          </div>
+          <div class="separator"></div>
+          <div class="img-container">
+              <img src="img/icon_scale_image.png" title="Change image scale" />
             </div>
-            <div class="separator"></div>
-            <div class="img-container">
-                <img src="img/icon_scale_image.png" title="Change image scale" />
-              </div>
-            <input type="number" class="scale" min="1" value="100" title="Change image scale">
-            <div class="separator"></div>
-            <label class="all-pages img-container" title="Stamp this image on the bottom-right of every page (e.g. a signature)">
-              <input type="checkbox" class="applyToAllPages" />
-              <span>All pages</span>
-            </label>
-            <div class="separator"></div>
-            <div class="img-container">
-              <button class="options-delete" title="Delete this image" />
-            </div>
+          <input type="number" class="scale" min="1" value="100" title="Change image scale">
+          <div class="separator"></div>
+          <label class="all-pages img-container" title="Stamp this image on the bottom-right of every page (e.g. a signature)">
+            <input type="checkbox" class="applyToAllPages" />
+            <span>All pages</span>
+          </label>
+          <div class="separator"></div>
+          <div class="img-container">
+            <button class="options-delete" title="Delete this image" />
           </div>
         </div>
-        `
-      );
-      const draggables = document.querySelectorAll(".draggable");
-      const newDraggable = draggables[draggables.length - 1] as HTMLElement;
-      that.setupDraggable(newDraggable, draggables.length);
-      // Note that focusing scrolls the PDF page to the element
+      </div>
+      `
+    );
+
+    const draggables = document.querySelectorAll(".draggable");
+    const newDraggable = draggables[draggables.length - 1] as HTMLElement;
+    that.setupDraggable(newDraggable, draggables.length);
+
+    const scaleInput = newDraggable.querySelector(
+      "input[type=number].scale"
+    ) as HTMLInputElement;
+    scaleInput.value = scale.toString();
+
+    const allPagesCheckbox = newDraggable.querySelector(
+      "input[type=checkbox].applyToAllPages"
+    ) as HTMLInputElement;
+    allPagesCheckbox.checked = allPages;
+
+    const image = newDraggable.querySelector(
+      ".image-wrapper"
+    ) as HTMLImageElement;
+
+    image.onload = function () {
+      image.width = (image.naturalWidth * scale) / 100;
+      image.height = (image.naturalHeight * scale) / 100;
+      that.positionDraggableAtCorner(newDraggable, image, position);
+      // Note that focusing scrolls the PDF page to the element.
       newDraggable.focus();
-
-      // Read the default scale (%) from the toolbar and prefill the overlay's
-      // scale input so newly inserted images come in at the chosen size.
-      const defaultScale =
-        parseFloat(
-          (
-            document.getElementById(
-              "insert-image-scale"
-            ) as HTMLInputElement | null
-          )?.value ?? ""
-        ) || 100;
-      const scaleInput = newDraggable.querySelector(
-        "input[type=number].scale"
-      ) as HTMLInputElement;
-      scaleInput.value = defaultScale.toString();
-
-      var input = document.getElementById(
-        "insert-image-input"
-      ) as HTMLInputElement;
-      var img = newDraggable.querySelector(
-        ".image-wrapper"
-      ) as HTMLImageElement;
-      var file = input.files?.[0];
-
-      if (file) {
-        var reader = new FileReader();
-
-        reader.onload = function (e: ProgressEvent<FileReader>) {
-          const imageBase64 = (e.target?.result as string) || null;
-          if (imageBase64 != null && validateBase64(imageBase64)) {
-            // Apply the default scale once the natural dimensions are known.
-            img.onload = function () {
-              const scale = parseFloat(scaleInput.value) || 100;
-              img.width = (img.naturalWidth * scale) / 100;
-              img.height = (img.naturalHeight * scale) / 100;
-            };
-            img.src = imageBase64;
-          } else {
-            console.log(
-              `Invalid image format: ${imageBase64} must be either PNG or JPEG.`
-            );
-          }
-        };
-
-        reader.readAsDataURL(file);
-      } else {
-        img.src = ""; // Clear the image if no file is selected
-      }
-
-      const image = newDraggable.querySelector(
-        ".image-wrapper"
-      ) as HTMLImageElement;
-      (
-        newDraggable.querySelector("input[type=number].scale") as HTMLElement
-      ).addEventListener("input", function (event: Event) {
-        that.handleScaleInputChange(event, image);
-      });
     };
+    image.src = base64;
+
+    scaleInput.addEventListener("input", function (event: Event) {
+      that.handleScaleInputChange(event, image);
+    });
+  }
+
+  /** Returns the page element the user is currently viewing (falls back to the first page). */
+  private currentPageElement(): HTMLElement | null {
+    const pageInput = document.getElementById(
+      "current-page"
+    ) as HTMLInputElement | null;
+    const pages = this.getAllPages();
+    let pageNum = parseInt(pageInput?.value ?? "1");
+    if (isNaN(pageNum) || pageNum < 1 || pageNum > pages.length) {
+      pageNum = 1;
+    }
+    return (pages[pageNum - 1] as HTMLElement) ?? null;
+  }
+
+  /** Positions the draggable so the image lands at the requested corner of the current page. */
+  private positionDraggableAtCorner(
+    draggable: HTMLElement,
+    image: HTMLImageElement,
+    position: string
+  ) {
+    const page = this.currentPageElement();
+    if (page == null) {
+      return;
+    }
+    const margin = 20;
+    const imgWidth = image.width;
+    const imgHeight = image.height;
+    const pageLeft = page.offsetLeft;
+    const pageTop = page.offsetTop;
+    const pageWidth = page.offsetWidth;
+    const pageHeight = page.offsetHeight;
+
+    let targetImgX: number;
+    let targetImgY: number;
+    switch (position) {
+      case "bottom-left":
+        targetImgX = pageLeft + margin;
+        targetImgY = pageTop + pageHeight - margin - imgHeight;
+        break;
+      case "top-right":
+        targetImgX = pageLeft + pageWidth - margin - imgWidth;
+        targetImgY = pageTop + margin;
+        break;
+      case "top-left":
+        targetImgX = pageLeft + margin;
+        targetImgY = pageTop + margin;
+        break;
+      case "center":
+        targetImgX = pageLeft + (pageWidth - imgWidth) / 2;
+        targetImgY = pageTop + (pageHeight - imgHeight) / 2;
+        break;
+      case "bottom-right":
+      default:
+        targetImgX = pageLeft + pageWidth - margin - imgWidth;
+        targetImgY = pageTop + pageHeight - margin - imgHeight;
+        break;
+    }
+
+    // The image sits inside the draggable (behind its padding), so offset the
+    // draggable by that inner gap to make the image itself hit the target.
+    const [imgOffsetX, imgOffsetY] = this.offsetRelativeToAncestor(
+      image,
+      this.contentInner
+    );
+    const deltaX = imgOffsetX - draggable.offsetLeft;
+    const deltaY = imgOffsetY - draggable.offsetTop;
+
+    draggable.style.left = `${targetImgX - deltaX}px`;
+    draggable.style.top = `${targetImgY - deltaY}px`;
   }
 
   public setOnPdfFileChosenListener(
