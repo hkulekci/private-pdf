@@ -17,6 +17,9 @@ export class View {
     "content-inner"
   ) as HTMLElement;
 
+  /** Monotonic id used to link an image draggable to its "all pages" preview ghosts. */
+  private ghostIdCounter = 0;
+
   public resetState() {
     (document.getElementById("pages") as HTMLElement).innerHTML = "";
     (document.getElementById("pageContainer") as HTMLElement).innerHTML = "";
@@ -389,6 +392,7 @@ export class View {
 
     const draggables = document.querySelectorAll(".draggable");
     const newDraggable = draggables[draggables.length - 1] as HTMLElement;
+    newDraggable.dataset.imgId = String(++this.ghostIdCounter);
     that.setupDraggable(newDraggable, draggables.length);
 
     const scaleInput = newDraggable.querySelector(
@@ -400,6 +404,9 @@ export class View {
       "input[type=checkbox].applyToAllPages"
     ) as HTMLInputElement;
     allPagesCheckbox.checked = allPages;
+    allPagesCheckbox.addEventListener("change", function () {
+      that.syncAllPagesGhosts(newDraggable);
+    });
 
     const image = newDraggable.querySelector(
       ".image-wrapper"
@@ -409,6 +416,8 @@ export class View {
       image.width = (image.naturalWidth * scale) / 100;
       image.height = (image.naturalHeight * scale) / 100;
       that.positionDraggableAtCorner(newDraggable, image, position);
+      // Mirror the image onto every other page when "all pages" is enabled.
+      that.syncAllPagesGhosts(newDraggable);
       // Note that focusing scrolls the PDF page to the element.
       newDraggable.focus();
     };
@@ -416,7 +425,100 @@ export class View {
 
     scaleInput.addEventListener("input", function (event: Event) {
       that.handleScaleInputChange(event, image);
+      that.syncAllPagesGhosts(newDraggable);
     });
+  }
+
+  /**
+   * Renders read-only preview copies ("ghosts") of an "all pages" image on
+   * every page other than the one holding the editable draggable, so the user
+   * can see the image will be stamped on all pages. Ghosts are excluded from
+   * `getImageDraggableMetadata` and are re-created on move/scale/toggle.
+   */
+  private syncAllPagesGhosts(draggable: HTMLElement): void {
+    const owner = draggable.dataset.imgId;
+    if (owner == null) {
+      return;
+    }
+    this.removeGhostsFor(owner);
+
+    const checkbox = draggable.querySelector(
+      "input[type=checkbox].applyToAllPages"
+    ) as HTMLInputElement | null;
+    const image = draggable.querySelector(
+      ".image-wrapper"
+    ) as HTMLImageElement | null;
+    if (
+      checkbox == null ||
+      !checkbox.checked ||
+      image == null ||
+      !image.src ||
+      !image.naturalWidth
+    ) {
+      return;
+    }
+
+    const imgWidth = image.width;
+    const imgHeight = image.height;
+    const refPage = this.pageContainingImage(image);
+    if (refPage == null) {
+      return;
+    }
+    const [imgX, imgY] = this.offsetRelativeToAncestor(image, this.contentInner);
+    // Distance from the reference page's bottom-right corner, mirrored on every
+    // page — the same anchoring the save step uses for "all pages".
+    const rightGap = refPage.offsetLeft + refPage.offsetWidth - (imgX + imgWidth);
+    const bottomGap =
+      refPage.offsetTop + refPage.offsetHeight - (imgY + imgHeight);
+
+    const overlayContainer = document.getElementById(
+      "overlayContainer"
+    ) as HTMLElement;
+    this.getAllPages().forEach((p) => {
+      const page = p as HTMLElement;
+      if (page === refPage) {
+        return; // the editable image is already visible on the reference page
+      }
+      const ghost = document.createElement("img");
+      ghost.src = image.src;
+      ghost.className = "all-pages-ghost";
+      ghost.dataset.owner = owner;
+      ghost.style.width = `${imgWidth}px`;
+      ghost.style.height = `${imgHeight}px`;
+      ghost.style.left = `${
+        page.offsetLeft + page.offsetWidth - rightGap - imgWidth
+      }px`;
+      ghost.style.top = `${
+        page.offsetTop + page.offsetHeight - bottomGap - imgHeight
+      }px`;
+      overlayContainer.appendChild(ghost);
+    });
+  }
+
+  private removeGhostsFor(owner: string): void {
+    document
+      .querySelectorAll(`.all-pages-ghost[data-owner="${owner}"]`)
+      .forEach((ghost) => ghost.remove());
+  }
+
+  /** Returns the page whose area contains the image's center (falls back to the current page). */
+  private pageContainingImage(image: HTMLImageElement): HTMLElement | null {
+    const [imgX, imgY] = this.offsetRelativeToAncestor(image, this.contentInner);
+    const cx = imgX + image.width / 2;
+    const cy = imgY + image.height / 2;
+    const pages = this.getAllPages();
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i] as HTMLElement;
+      if (
+        cx >= page.offsetLeft &&
+        cx <= page.offsetLeft + page.offsetWidth &&
+        cy >= page.offsetTop &&
+        cy <= page.offsetTop + page.offsetHeight
+      ) {
+        return page;
+      }
+    }
+    return this.currentPageElement();
   }
 
   /** Returns the page element the user is currently viewing (falls back to the first page). */
@@ -845,6 +947,7 @@ export class View {
     draggableElement: HTMLElement,
     numDraggables: number
   ): void {
+    const that = this;
     let offsetX: number, offsetY: number;
 
     const scrollTop = (document.getElementById("content") as HTMLElement)
@@ -855,6 +958,10 @@ export class View {
 
     (draggableElement.querySelector(".options-delete") as HTMLElement).onclick =
       function () {
+        const owner = draggableElement.dataset.imgId;
+        if (owner != null) {
+          that.removeGhostsFor(owner);
+        }
         draggableElement.remove();
       };
 
@@ -877,6 +984,10 @@ export class View {
       window.removeEventListener("mousemove", mouseMoveListener);
       window.removeEventListener("mouseup", mouseUpListener);
       draggableElement.style.opacity = "1";
+      // Re-mirror the "all pages" ghosts to follow the new position.
+      if (draggableElement.classList.contains("image")) {
+        that.syncAllPagesGhosts(draggableElement);
+      }
     };
 
     const a = draggableElement.querySelector(".drag-handle") as HTMLElement;
