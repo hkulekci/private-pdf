@@ -147,6 +147,19 @@
         opacity: 0.6;
         z-index: 90;
       }
+      #overlayContainer .text-options input[type="text"].exceptPages {
+        width: 60px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 12px;
+        padding: 2px 4px;
+      }
+      .modal-row input[type="text"] {
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        padding: 4px;
+        width: 90px;
+      }
       #overlayContainer .all-pages input[type="checkbox"] {
         margin: 0;
         cursor: pointer;
@@ -523,6 +536,16 @@
             <input type="checkbox" id="modal-all-pages" />
             Add to all pages
           </label>
+        </div>
+        <div class="modal-row" id="modal-except-row">
+          <label
+            >Except pages:
+            <input
+              type="text"
+              id="modal-except-pages"
+              placeholder="e.g. 1, 5"
+              title="Comma-separated page numbers to skip"
+          /></label>
         </div>
         <div class="modal-row">
           <label

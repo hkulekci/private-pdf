@@ -274,6 +274,12 @@ export class View {
     const allPagesInput = document.getElementById(
       "modal-all-pages"
     ) as HTMLInputElement;
+    const exceptPagesInput = document.getElementById(
+      "modal-except-pages"
+    ) as HTMLInputElement;
+    const exceptRow = document.getElementById(
+      "modal-except-row"
+    ) as HTMLElement;
     const positionSelect = document.getElementById(
       "modal-position"
     ) as HTMLSelectElement;
@@ -290,20 +296,28 @@ export class View {
       overlay.setAttribute("hidden", "true");
     };
 
+    // "Except pages" only makes sense together with "all pages".
+    const updateExceptState = function () {
+      exceptRow.style.display = allPagesInput.checked ? "flex" : "none";
+    };
+
     const openModal = function () {
       fileInput.value = "";
       preview.src = "";
       previewWrap.style.display = "none";
       scaleInput.value = "100";
       allPagesInput.checked = false;
+      exceptPagesInput.value = "";
       positionSelect.value = "bottom-right";
       currentBase64 = null;
       insertBtn.disabled = true;
+      updateExceptState();
       overlay.removeAttribute("hidden");
     };
 
     openBtn.onclick = openModal;
     cancelBtn.onclick = closeModal;
+    allPagesInput.onchange = updateExceptState;
     overlay.onclick = function (event: MouseEvent) {
       // Close only when clicking the dimmed backdrop, not the dialog itself.
       if (event.target === overlay) {
@@ -346,7 +360,8 @@ export class View {
         currentBase64,
         scale,
         allPagesInput.checked,
-        positionSelect.value
+        positionSelect.value,
+        allPagesInput.checked ? exceptPagesInput.value : ""
       );
       closeModal();
     };
@@ -357,7 +372,8 @@ export class View {
     base64: string,
     scale: number,
     allPages: boolean,
-    position: string
+    position: string,
+    exceptPages: string
   ) {
     const that = this;
     (
@@ -381,6 +397,7 @@ export class View {
             <input type="checkbox" class="applyToAllPages" />
             <span>All pages</span>
           </label>
+          <input type="text" class="exceptPages" size="7" placeholder="skip: 1,5" title="Pages to skip (comma-separated), applies when 'All pages' is on">
           <div class="separator"></div>
           <div class="img-container">
             <button class="options-delete" title="Delete this image" />
@@ -400,11 +417,25 @@ export class View {
     ) as HTMLInputElement;
     scaleInput.value = scale.toString();
 
+    const exceptInput = newDraggable.querySelector(
+      "input[type=text].exceptPages"
+    ) as HTMLInputElement;
+    exceptInput.value = exceptPages;
+
     const allPagesCheckbox = newDraggable.querySelector(
       "input[type=checkbox].applyToAllPages"
     ) as HTMLInputElement;
     allPagesCheckbox.checked = allPages;
+    // The "skip pages" field is only relevant when stamping on all pages.
+    const updateExceptVisibility = function () {
+      exceptInput.style.display = allPagesCheckbox.checked ? "" : "none";
+    };
+    updateExceptVisibility();
     allPagesCheckbox.addEventListener("change", function () {
+      updateExceptVisibility();
+      that.syncAllPagesGhosts(newDraggable);
+    });
+    exceptInput.addEventListener("input", function () {
       that.syncAllPagesGhosts(newDraggable);
     });
 
@@ -458,6 +489,16 @@ export class View {
       return;
     }
 
+    const excludedPages = new Set(
+      this.parseExcludedPages(
+        (
+          draggable.querySelector(
+            "input[type=text].exceptPages"
+          ) as HTMLInputElement | null
+        )?.value ?? ""
+      )
+    );
+
     const imgWidth = image.width;
     const imgHeight = image.height;
     const refPage = this.pageContainingImage(image);
@@ -474,10 +515,13 @@ export class View {
     const overlayContainer = document.getElementById(
       "overlayContainer"
     ) as HTMLElement;
-    this.getAllPages().forEach((p) => {
+    this.getAllPages().forEach((p, index) => {
       const page = p as HTMLElement;
       if (page === refPage) {
         return; // the editable image is already visible on the reference page
+      }
+      if (excludedPages.has(index + 1)) {
+        return; // this page is skipped, don't preview it
       }
       const ghost = document.createElement("img");
       ghost.src = image.src;
@@ -849,6 +893,13 @@ export class View {
               "input[type=checkbox].applyToAllPages"
             ) as HTMLInputElement | null
           )?.checked ?? false;
+        const excludedPages = that.parseExcludedPages(
+          (
+            draggable.querySelector(
+              "input[type=text].exceptPages"
+            ) as HTMLInputElement | null
+          )?.value ?? ""
+        );
         return new ImageDraggableMetadata(
           image.src,
           [image.naturalWidth * scale, image.naturalHeight * scale],
@@ -858,13 +909,26 @@ export class View {
             casted.offsetLeft + casted.offsetWidth,
             casted.offsetTop + casted.offsetHeight,
           ],
-          applyToAllPages
+          applyToAllPages,
+          excludedPages
         );
       });
   }
 
   public getAllPages(): NodeListOf<Element> {
     return document.querySelectorAll("#content .page");
+  }
+
+  /** Parses a comma-separated list of page numbers (e.g. "1, 5, 8") into unique 1-based ints. */
+  private parseExcludedPages(value: string): number[] {
+    const seen = new Set<number>();
+    value.split(",").forEach((part) => {
+      const n = parseInt(part.trim());
+      if (!isNaN(n) && n >= 1) {
+        seen.add(n);
+      }
+    });
+    return Array.from(seen);
   }
 
   private calculateSmallestZIndex(collection: Array<HTMLElement>): number {

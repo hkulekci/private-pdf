@@ -394,8 +394,12 @@ export class Controller {
     // preserving the same distance from the bottom-right corner that it has on
     // the page the user placed it on (the reference page). Otherwise it is only
     // added to the pages it visually overlaps.
+    const excludedPages = new Set(draggable.excludedPages);
     const pagesToIncludeImage = draggable.applyToAllPages
-      ? Array.from({ length: pdfDocument.getPageCount() }, (_, i) => i + 1)
+      ? Array.from(
+          { length: pdfDocument.getPageCount() },
+          (_, i) => i + 1
+        ).filter((pageNumber) => !excludedPages.has(pageNumber))
       : overlappingPages;
 
     // Gap (in screen pixels) between the image and the bottom-right corner of

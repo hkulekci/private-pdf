@@ -6,6 +6,8 @@ export class ImageDraggableMetadata {
   public draggableTopLeft: [number, number];
   public draggableBottomRight: [number, number];
   public applyToAllPages: boolean;
+  /** Page numbers (1-based) to skip when `applyToAllPages` is enabled. */
+  public excludedPages: number[];
 
   constructor(
     imageBase64: string,
@@ -13,7 +15,8 @@ export class ImageDraggableMetadata {
     offsetToAncestor: [number, number],
     draggableTopLeft: [number, number],
     draggableBottomRight: [number, number],
-    applyToAllPages: boolean = false
+    applyToAllPages: boolean = false,
+    excludedPages: number[] = []
   ) {
     this.imageBase64 = imageBase64;
     this.scaledSize = scaledSize;
@@ -21,5 +24,6 @@ export class ImageDraggableMetadata {
     this.draggableTopLeft = draggableTopLeft;
     this.draggableBottomRight = draggableBottomRight;
     this.applyToAllPages = applyToAllPages;
+    this.excludedPages = excludedPages;
   }
 }
