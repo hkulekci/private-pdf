@@ -270,6 +270,11 @@ export class View {
               </div>
             <input type="number" class="scale" min="1" value="100" title="Change image scale">
             <div class="separator"></div>
+            <label class="all-pages img-container" title="Stamp this image on the bottom-right of every page (e.g. a signature)">
+              <input type="checkbox" class="applyToAllPages" />
+              <span>All pages</span>
+            </label>
+            <div class="separator"></div>
             <div class="img-container">
               <button class="options-delete" title="Delete this image" />
             </div>
@@ -573,6 +578,12 @@ export class View {
           image,
           that.contentInner
         );
+        const applyToAllPages =
+          (
+            draggable.querySelector(
+              "input[type=checkbox].applyToAllPages"
+            ) as HTMLInputElement | null
+          )?.checked ?? false;
         return new ImageDraggableMetadata(
           image.src,
           [image.naturalWidth * scale, image.naturalHeight * scale],
@@ -581,7 +592,8 @@ export class View {
           /* draggableBottomRight = */ [
             casted.offsetLeft + casted.offsetWidth,
             casted.offsetTop + casted.offsetHeight,
-          ]
+          ],
+          applyToAllPages
         );
       });
   }

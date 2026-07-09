@@ -383,12 +383,38 @@ export class Controller {
   ) {
     const pages = this.view.getAllPages();
 
-    const pagesToIncludeImage = this.getPagesOverlappingOverlay(
+    const overlappingPages = this.getPagesOverlappingOverlay(
       pages,
       draggable.draggableTopLeft,
       draggable.draggableBottomRight,
       pdfDocument.getPageCount()
     );
+
+    // When "All pages" is enabled, the image is stamped on every page while
+    // preserving the same distance from the bottom-right corner that it has on
+    // the page the user placed it on (the reference page). Otherwise it is only
+    // added to the pages it visually overlaps.
+    const pagesToIncludeImage = draggable.applyToAllPages
+      ? Array.from({ length: pdfDocument.getPageCount() }, (_, i) => i + 1)
+      : overlappingPages;
+
+    // Gap (in screen pixels) between the image and the bottom-right corner of
+    // the reference page, only relevant in "All pages" mode.
+    let rightGap = 0;
+    let bottomGap = 0;
+    if (draggable.applyToAllPages) {
+      const referencePageNumber = overlappingPages[0] ?? 1;
+      const referencePage = pages[referencePageNumber - 1] as HTMLElement;
+      const [refOffsetLeft, refOffsetTop] = draggable.offsetToAncestor;
+      rightGap =
+        referencePage.offsetLeft +
+        referencePage.offsetWidth -
+        (refOffsetLeft + draggable.scaledSize[0]);
+      bottomGap =
+        referencePage.offsetTop +
+        referencePage.offsetHeight -
+        (refOffsetTop + draggable.scaledSize[1]);
+    }
 
     for (const pageNumber of pagesToIncludeImage) {
       const pdfPage = pdfDocument.getCachedPage(pageNumber);
@@ -415,7 +441,20 @@ export class Controller {
         height,
         imageType
       );
-      const [offsetLeft, offsetTop] = draggable.offsetToAncestor;
+      let offsetLeft: number;
+      let offsetTop: number;
+      if (draggable.applyToAllPages) {
+        // Anchor to this page's bottom-right corner using the reference gaps.
+        offsetLeft =
+          page.offsetLeft + page.offsetWidth - rightGap - draggable.scaledSize[0];
+        offsetTop =
+          page.offsetTop +
+          page.offsetHeight -
+          bottomGap -
+          draggable.scaledSize[1];
+      } else {
+        [offsetLeft, offsetTop] = draggable.offsetToAncestor;
+      }
       imageOverlay.transform.x = offsetLeft * originalToActualRatio;
       imageOverlay.transform.y =
         (page.offsetHeight - offsetTop + page.offsetTop) *
